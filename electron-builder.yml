@@ -1,0 +1,17 @@
+appId: com.yt2.downloader
+productName: YT2 Downloader
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**/*
+asarUnpack:
+  - "node_modules/ffmpeg-static/**/*"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
