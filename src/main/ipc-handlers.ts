@@ -1,6 +1,7 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, app } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'fs'
+import { readFile, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import YTDlpWrap from 'yt-dlp-wrap'
 import NodeID3 from 'node-id3'
@@ -383,6 +384,10 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
 
                     proc.on('error', (err: Error) => {
                         activeDownloads.delete(downloadId)
+                        // Bug 5 fix: cleanup orphaned tempDir on process error
+                        if (tempDir && existsSync(tempDir)) {
+                            try { rmSync(tempDir, { recursive: true, force: true }) } catch (_) { }
+                        }
                         reject(err)
                     })
                 } catch (err: any) {
@@ -411,4 +416,53 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
         else win?.maximize()
     })
     ipcMain.on('window:close', () => getMainWindow()?.close())
+
+    // Toggle Electron DevTools
+    ipcMain.handle('app:toggle-devtools', () => {
+        const win = getMainWindow()
+        if (!win) return
+        if (win.webContents.isDevToolsOpened()) {
+            win.webContents.closeDevTools()
+        } else {
+            win.webContents.openDevTools({ mode: 'detach' })
+        }
+    })
+
+    // ── Download History ─────────────────────────────────────────
+    const histFile = () => join(app.getPath('userData'), 'download-history.json')
+
+    ipcMain.handle('history:load', async () => {
+        try {
+            const raw = await readFile(histFile(), 'utf-8')
+            return JSON.parse(raw)
+        } catch {
+            return []
+        }
+    })
+
+    ipcMain.handle('history:save', async (_e, records: unknown[]) => {
+        try {
+            await writeFile(histFile(), JSON.stringify(records, null, 2), 'utf-8')
+        } catch (err) {
+            console.error('[history:save]', err)
+        }
+    })
+
+    ipcMain.handle('history:delete', async (_e, downloadId: string) => {
+        try {
+            const raw = await readFile(histFile(), 'utf-8')
+            const arr = JSON.parse(raw) as { downloadId: string }[]
+            await writeFile(histFile(), JSON.stringify(arr.filter(r => r.downloadId !== downloadId), null, 2), 'utf-8')
+        } catch {
+            // File may not exist yet — nothing to do
+        }
+    })
+
+    ipcMain.handle('history:clear', async () => {
+        try {
+            await writeFile(histFile(), '[]', 'utf-8')
+        } catch (err) {
+            console.error('[history:clear]', err)
+        }
+    })
 }

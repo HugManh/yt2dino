@@ -54,6 +54,11 @@ interface ElectronAPI {
     minimize: () => void
     maximize: () => void
     close: () => void
+    // Download history (persisted to userData/download-history.json)
+    historyLoad: () => Promise<unknown[]>
+    historySave: (records: unknown[]) => Promise<void>
+    historyDelete: (downloadId: string) => Promise<void>
+    historyClear: () => Promise<void>
 }
 
 interface ElectronShell {

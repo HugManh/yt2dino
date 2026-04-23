@@ -48,8 +48,9 @@ const api = {
     checkDependencies: (): Promise<boolean> =>
         ipcRenderer.invoke('app:check-dependencies'),
 
-    search: (query: string): Promise<VideoResult[]> =>
-        ipcRenderer.invoke('youtube:search', query),
+    // Bug 6 fix: include page param so infinite scroll fetches correct page
+    search: (query: string, page: number = 1): Promise<VideoResult[]> =>
+        ipcRenderer.invoke('youtube:search', query, page),
 
     getVideoInfo: (videoId: string): Promise<{ title: string; duration: string; thumbnail: string; formats: DownloadFormat[] }> =>
         ipcRenderer.invoke('youtube:get-info', videoId),
@@ -71,7 +72,13 @@ const api = {
 
     minimize: (): void => { ipcRenderer.send('window:minimize') },
     maximize: (): void => { ipcRenderer.send('window:maximize') },
-    close: (): void => { ipcRenderer.send('window:close') }
+    close: (): void => { ipcRenderer.send('window:close') },
+
+    // Download history
+    historyLoad: (): Promise<unknown[]> => ipcRenderer.invoke('history:load'),
+    historySave: (records: unknown[]): Promise<void> => ipcRenderer.invoke('history:save', records),
+    historyDelete: (downloadId: string): Promise<void> => ipcRenderer.invoke('history:delete', downloadId),
+    historyClear: (): Promise<void> => ipcRenderer.invoke('history:clear'),
 }
 
 const electronBridge = {
