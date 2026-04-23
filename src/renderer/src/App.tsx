@@ -1,130 +1,47 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import VideoCard from './components/VideoCard'
 import DownloadModal from './components/DownloadModal'
-
-interface VideoResult {
-    id: string
-    title: string
-    channel: string
-    duration: string
-    thumbnail: string
-    views: number
-    uploadedAt: string
-    url: string
-}
-
-interface SelectedVideo {
-    id: string
-    title: string
-    thumbnail: string
-    url: string
-    duration: string
-    channel?: string
-    uploadedAt?: string
-}
+import DownloadTray from './components/DownloadTray'
+import { useYouTubeSearch } from './hooks/useYouTubeSearch'
+import { useDownloads } from './hooks/useDownloads'
+import type { SelectedVideo } from './types'
 
 function App(): React.JSX.Element {
-    const [query, setQuery] = useState('')
-    const [results, setResults] = useState<VideoResult[]>([])
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
-    const [page, setPage] = useState(1)
-    const [hasMore, setHasMore] = useState(true)
-    const [searchDone, setSearchDone] = useState(false)
+    const {
+        query, setQuery,
+        results,
+        loading,
+        error,
+        searchDone,
+        inputRef,
+        lastElementRef,
+        handleSearch,
+        handleKeyDown
+    } = useYouTubeSearch()
+
+    const {
+        downloads,
+        trayOpen, setTrayOpen,
+        flyState,
+        handleDownloadStart,
+        handleDelete,
+        handleClear
+    } = useDownloads()
+
     const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null)
     const [isReady, setIsReady] = useState(false)
     const [initError, setInitError] = useState('')
-    const inputRef = useRef<HTMLInputElement>(null)
 
     // Check dependencies on mount
     useEffect(() => {
         window.api.checkDependencies()
             .then(success => {
-                if (success) {
-                    setIsReady(true)
-                } else {
-                    setInitError('Không thể tải yt-dlp. Vui lòng kiểm tra kết nối mạng.')
-                }
+                if (success) setIsReady(true)
+                else setInitError('Không thể tải yt-dlp. Vui lòng kiểm tra kết nối mạng.')
             })
-            .catch(err => {
-                setInitError('Lỗi khởi tạo: ' + err.message)
-            })
+            .catch(err => setInitError('Lỗi khởi tạo: ' + err.message))
     }, [])
-
-    const observer = useRef<IntersectionObserver | null>(null)
-    const lastElementRef = useCallback((node: HTMLDivElement | null) => {
-        if (loading) return
-        if (observer.current) observer.current.disconnect()
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
-                setPage(prevPage => prevPage + 1)
-            }
-        })
-        if (node) observer.current.observe(node)
-    }, [loading, hasMore])
-
-    const fetchResults = async (q: string, p: number, isNewSearch = false) => {
-        if (!q) return
-        setLoading(true)
-        if (isNewSearch) setError('')
-
-        try {
-            const data = await window.api.search(q, p)
-            setResults(data)
-            setSearchDone(true)
-            // youtube-sr doesn't give a clear "end of results", so we guess if we get less than requested limit (p * 20)
-            setHasMore(data.length > (p - 1) * 20)
-        } catch (err: any) {
-            setError(err.message || 'Tìm kiếm thất bại. Vui lòng thử lại.')
-            setSearchDone(true)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleSearch = useCallback(async () => {
-        const q = query.trim()
-        if (!q || loading) return
-        setPage(1)
-        setResults([])
-        fetchResults(q, 1, true)
-    }, [query, loading])
-
-    // Debounced auto-search
-    useEffect(() => {
-        const q = query.trim()
-        if (!q) {
-            setResults([])
-            setSearchDone(false)
-            setError('')
-            setPage(1)
-            setHasMore(true)
-            return
-        }
-
-        const timeoutId = setTimeout(() => {
-            if (loading && page === 1) return
-            setPage(1)
-            setResults([])
-            fetchResults(q, 1, true)
-        }, 800)
-
-        return () => clearTimeout(timeoutId)
-    }, [query])
-
-    // Fetch next page when 'page' state updates
-    useEffect(() => {
-        if (page > 1) {
-            fetchResults(query.trim(), page, false)
-        }
-    }, [page])
-
-    const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent<HTMLInputElement>) => {
-            if (e.key === 'Enter') handleSearch()
-        },
-        [handleSearch]
-    )
 
     const handleDownload = useCallback((video: SelectedVideo) => {
         setSelectedVideo(video)
@@ -149,6 +66,15 @@ function App(): React.JSX.Element {
                 </div>
             </div>
 
+            {/* Floating download tray */}
+            <DownloadTray
+                downloads={downloads}
+                open={trayOpen}
+                onToggle={() => setTrayOpen(v => !v)}
+                onDelete={handleDelete}
+                onClear={handleClear}
+            />
+
             {/* Main Content */}
             <div className="main-content">
                 {!isReady && !initError && (
@@ -169,64 +95,48 @@ function App(): React.JSX.Element {
                 {isReady && (
                     <>
                         {/* Search */}
-                        <div className="search-section">
+                        <div className={`search-section ${!searchDone && !loading && !error && results.length === 0 ? 'hero' : ''}`}>
                             {!searchDone && !loading && (
                                 <div className="search-label">
-                                    <h1>YouTube Downloader</h1>
-                                    <p>Tìm kiếm và tải video hoặc MP3 từ YouTube dễ dàng</p>
+                                    <h1>Tìm kiếm Video</h1>
+                                    <p>Nhập từ khóa hoặc Dán <span style={{ color: '#ff6b6b', fontWeight: 600 }}>YouTube</span> Link</p>
                                 </div>
                             )}
                             <div className="search-bar">
-                                <div className="search-input-wrapper">
-                                    <span className="search-icon">🔍</span>
-                                    <input
-                                        ref={inputRef}
-                                        className="search-input"
-                                        type="text"
-                                        placeholder="Tìm kiếm video YouTube..."
-                                        value={query}
-                                        onChange={(e) => setQuery(e.target.value)}
-                                        autoFocus
-                                    />
-                                </div>
+                                <input
+                                    ref={inputRef}
+                                    className="search-input"
+                                    type="text"
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Ví dụ: chill lofi, edm..."
+                                    autoFocus
+                                />
+                                {query && (
+                                    <button className="clear-btn" onClick={() => {
+                                        setQuery('')
+                                        inputRef.current?.focus()
+                                    }}>✕</button>
+                                )}
+                                <button className="search-btn" onClick={handleSearch} disabled={loading || !query.trim()}>
+                                    {loading ? <div className="spinner" /> : 'Tìm'}
+                                </button>
                             </div>
                         </div>
 
-                        {/* Status */}
-                        {searchDone && !loading && !error && results.length > 0 && (
-                            <div className="status-bar">
-                                Tìm thấy <strong>{results.length}</strong> kết quả cho "<em>{query}</em>"
-                            </div>
-                        )}
-
-                        {loading && results.length === 0 && (
-                            <div className="loading-state">
-                                <div className="spinner big-spinner" />
-                                <span>Đang tìm kiếm...</span>
-                            </div>
-                        )}
-
-                        {/* Error */}
-                        {error && !loading && (
-                            <div className="empty-state">
-                                <div className="empty-icon">⚠️</div>
-                                <h3>Đã xảy ra lỗi</h3>
+                        {/* Error state */}
+                        {error && (
+                            <div className="empty-state" style={{ marginTop: '20px' }}>
+                                <div className="empty-icon" style={{ filter: 'grayscale(1)' }}>⚠️</div>
+                                <h3>Không tìm thấy kết quả</h3>
                                 <p>{error}</p>
                             </div>
                         )}
 
-                        {/* Empty */}
-                        {searchDone && !loading && !error && results.length === 0 && (
-                            <div className="empty-state">
-                                <div className="empty-icon">🎬</div>
-                                <h3>Không tìm thấy kết quả</h3>
-                                <p>Hãy thử từ khóa khác</p>
-                            </div>
-                        )}
-
-                        {/* Welcome */}
-                        {!searchDone && !loading && !error && (
-                            <div className="empty-state">
+                        {/* Initial state (no search done, not loading, no results) */}
+                        {!searchDone && !loading && !error && results.length === 0 && (
+                            <div className="empty-state" style={{ marginTop: '40px' }}>
                                 <div className="empty-icon">🎵</div>
                                 <h3>Bắt đầu tìm kiếm</h3>
                                 <p>Nhập từ khóa để tự động tìm kiếm</p>
@@ -252,9 +162,35 @@ function App(): React.JSX.Element {
             </div>
 
             {/* Download Modal */}
-            {selectedVideo && (
-                <DownloadModal video={selectedVideo} onClose={handleCloseModal} />
-            )}
+            <AnimatePresence>
+                {selectedVideo && (
+                    <DownloadModal
+                        key="download-modal"
+                        video={selectedVideo}
+                        onClose={handleCloseModal}
+                        onDownloadStart={handleDownloadStart}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Fly-to-tray animation: thumbnail flies from download button to the FAB */}
+            <AnimatePresence>
+                {flyState && (
+                    <motion.img
+                        key={flyState.id}
+                        src={flyState.thumbnail}
+                        className="fly-thumbnail"
+                        initial={{ opacity: 1, scale: 1, x: flyState.fromX - 25, y: flyState.fromY - 25 }}
+                        animate={{
+                            opacity: [1, 0.8, 0],
+                            scale: [1, 0.5, 0.2],
+                            x: window.innerWidth - 50,
+                            y: 80,
+                        }}
+                        transition={{ duration: 0.65, ease: 'easeOut' }}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     )
 }

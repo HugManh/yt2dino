@@ -1,23 +1,8 @@
 import React, { memo } from 'react'
+import type { VideoResult, SelectedVideo } from '../types'
 
-interface VideoCardProps {
-    id: string
-    title: string
-    channel: string
-    duration: string
-    thumbnail: string
-    views: number
-    uploadedAt: string
-    url: string
-    onDownload: (video: {
-        id: string
-        title: string
-        thumbnail: string
-        url: string
-        duration: string
-        channel?: string
-        uploadedAt?: string
-    }) => void
+interface VideoCardProps extends VideoResult {
+    onDownload: (video: SelectedVideo) => void
 }
 
 function formatViews(views: number): string {
