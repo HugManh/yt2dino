@@ -29,8 +29,8 @@ A modern, fast, and lightweight YouTube Search & Downloader Desktop Application 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/yt2-downloader.git
-cd yt2-downloader
+git clone https://github.com/HugManh/yt2dino.git
+cd yt2dino
 ```
 
 ### 2. Install Dependencies
