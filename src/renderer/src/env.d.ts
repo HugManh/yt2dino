@@ -50,7 +50,7 @@ interface ElectronAPI {
     download: (params: { videoId: string; url: string; title: string; artist?: string; year?: string; genre?: string; thumbnailUrl?: string; format: string; ext: string; isAudio: boolean; outputPath: string; downloadId: string; audioQuality?: string }) => Promise<{ success: boolean; filePath: string }>
     cancel: (downloadId: string) => Promise<boolean>
     chooseFolder: () => Promise<string | null>
-    showSaveDialog: (defaultPath: string) => Promise<string | null>
+    showSaveDialog: (defaultDir: string, defaultName: string, ext: string, typeLabel: string) => Promise<string | null>
     showItemInFolder: (path: string) => Promise<boolean>
     openExternal: (url: string) => Promise<void>
     onDownloadProgress: (callback: (progress: any) => void) => () => void

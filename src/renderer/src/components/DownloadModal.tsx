@@ -148,9 +148,10 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ video, onClose, onDownloa
         const fromPos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
 
         const safeTitle = video.title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100)
-        const defaultPath = `${DEFAULT_OUTPUT_DIR}\\${safeTitle}.${selectedFormat.ext}`
 
-        const outputPath = await window.api.showSaveDialog(defaultPath)
+        const typeLabel = selectedFormat.isAudio ? `Âm thanh (${selectedFormat.label})` : `Video (${selectedFormat.label})`
+
+        const outputPath = await window.api.showSaveDialog(DEFAULT_OUTPUT_DIR, safeTitle, selectedFormat.ext, typeLabel)
         if (!outputPath) return // User cancelled
 
         const record: DownloadRecord = {

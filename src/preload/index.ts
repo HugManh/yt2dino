@@ -64,8 +64,8 @@ const api = {
     chooseFolder: (): Promise<string | null> =>
         ipcRenderer.invoke('app:choose-folder'),
 
-    showSaveDialog: (defaultPath: string): Promise<string | null> =>
-        ipcRenderer.invoke('app:show-save-dialog', defaultPath),
+    showSaveDialog: (defaultDir: string, defaultName: string, ext: string, typeLabel: string): Promise<string | null> =>
+        ipcRenderer.invoke('app:show-save-dialog', defaultDir, defaultName, ext, typeLabel),
 
     showItemInFolder: (path: string): Promise<boolean> =>
         ipcRenderer.invoke('app:show-item-in-folder', path),

@@ -157,11 +157,23 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
     })
 
     // ─── SAVE DIALOG ──────────────────────────────────────────────────────────
-    ipcMain.handle('app:show-save-dialog', async (_event, defaultPath: string) => {
+    ipcMain.handle('app:show-save-dialog', async (_event, defaultDir: string, defaultName: string, ext: string, typeLabel: string) => {
         const win = getMainWindow()
+
+        let suggestedPath = join(defaultDir, `${defaultName}.${ext}`)
+        let counter = 1
+        while (existsSync(suggestedPath)) {
+            suggestedPath = join(defaultDir, `${defaultName} (${counter}).${ext}`)
+            counter++
+        }
+
         const result = await dialog.showSaveDialog(win!, {
             title: 'Lưu file',
-            defaultPath,
+            defaultPath: suggestedPath,
+            filters: [
+                { name: typeLabel, extensions: [ext] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
         })
         if (result.canceled || !result.filePath) return null
         return result.filePath
