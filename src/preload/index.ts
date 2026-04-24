@@ -39,7 +39,7 @@ interface DownloadParams {
     format: string
     ext: string
     isAudio: boolean
-    outputDir: string
+    outputPath: string
     downloadId: string
     audioQuality?: string
 }
@@ -63,6 +63,9 @@ const api = {
 
     chooseFolder: (): Promise<string | null> =>
         ipcRenderer.invoke('app:choose-folder'),
+
+    showSaveDialog: (defaultPath: string): Promise<string | null> =>
+        ipcRenderer.invoke('app:show-save-dialog', defaultPath),
 
     showItemInFolder: (path: string): Promise<boolean> =>
         ipcRenderer.invoke('app:show-item-in-folder', path),

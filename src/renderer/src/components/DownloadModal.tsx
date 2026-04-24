@@ -127,7 +127,6 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ video, onClose, onDownloa
     const [mediaType, setMediaType] = useState<'video' | 'audio'>('video')
     const [selectedFormat, setSelectedFormat] = useState<FormatDef>(FORMAT_TREE.video[0])
     const [selectedQuality, setSelectedQuality] = useState<Quality>(FORMAT_TREE.video[0].qualities[1]) // 720p default
-    const [outputDir, setOutputDir] = useState(DEFAULT_OUTPUT_DIR)
     const [downloadId] = useState(() => `dl-${video.id}-${Date.now()}`)
     const formats = FORMAT_TREE[mediaType]
 
@@ -143,15 +142,16 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ video, onClose, onDownloa
         setSelectedQuality(fmt.qualities[0])
     }, [])
 
-    const handleChooseFolder = useCallback(async () => {
-        const dir = await window.api.chooseFolder()
-        if (dir) setOutputDir(dir)
-    }, [])
-
-    /** Fire-and-forget download — progress tracked in tray only */
-    const handleDownload = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    /** Ask for save location, then Fire-and-forget download — progress tracked in tray only */
+    const handleDownload = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
         const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
         const fromPos = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+
+        const safeTitle = video.title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100)
+        const defaultPath = `${DEFAULT_OUTPUT_DIR}\\${safeTitle}.${selectedFormat.ext}`
+
+        const outputPath = await window.api.showSaveDialog(defaultPath)
+        if (!outputPath) return // User cancelled
 
         const record: DownloadRecord = {
             downloadId,
@@ -180,7 +180,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ video, onClose, onDownloa
             format: selectedQuality.value,
             ext: selectedFormat.ext,
             isAudio: selectedFormat.isAudio,
-            outputDir,
+            outputPath,
             downloadId,
             audioQuality: selectedQuality.audioQuality,
         }).catch((err: Error) => {
@@ -188,8 +188,8 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ video, onClose, onDownloa
             // the global progress listener in App.tsx will update the tray status to 'error'
             if (!err?.message?.includes('cancel')) console.error('[download]', err)
         })
-        // Remove onClose() so modal stays open
-    }, [video, selectedFormat, selectedQuality, outputDir, downloadId, onDownloadStart])
+        onClose() // Auto close modal after successful dialog acceptance
+    }, [video, selectedFormat, selectedQuality, downloadId, onDownloadStart, onClose])
 
     return (
         <motion.div
@@ -246,15 +246,6 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ video, onClose, onDownloa
                             ))}
                         </motion.div>
                     </AnimatePresence>
-
-                    {/* Thư mục lưu */}
-                    <div className="section-label">Thư mục lưu</div>
-                    <div className="folder-row">
-                        <div className="folder-path" title={outputDir}>{outputDir}</div>
-                        <button className="folder-btn" onClick={handleChooseFolder}>
-                            <IconFolder /> Chọn
-                        </button>
-                    </div>
 
                     {/* Footer */}
                     <div className="modal-footer">

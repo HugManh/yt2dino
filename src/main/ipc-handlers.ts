@@ -156,6 +156,17 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
         return result.filePaths[0]
     })
 
+    // ─── SAVE DIALOG ──────────────────────────────────────────────────────────
+    ipcMain.handle('app:show-save-dialog', async (_event, defaultPath: string) => {
+        const win = getMainWindow()
+        const result = await dialog.showSaveDialog(win!, {
+            title: 'Lưu file',
+            defaultPath,
+        })
+        if (result.canceled || !result.filePath) return null
+        return result.filePath
+    })
+
     // ─── GET VIDEO INFO ───────────────────────────────────────────────────────
     ipcMain.handle('youtube:get-info', async (_event, videoId: string) => {
         if (!videoId || typeof videoId !== 'string') throw new Error('Invalid video ID')
@@ -220,19 +231,20 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
                 format: string
                 ext: string
                 isAudio: boolean
-                outputDir: string
+                outputPath: string
                 downloadId: string
                 audioQuality?: string
             }
         ) => {
-            const { videoId, url, title, artist, year, genre, thumbnailUrl, format, ext, isAudio, outputDir, downloadId, audioQuality } = params
+            const { videoId, url, title, artist, year, genre, thumbnailUrl, format, ext, isAudio, outputPath, downloadId, audioQuality } = params
 
             // Validate inputs
-            if (!videoId || !url || !outputDir || !downloadId) {
+            if (!videoId || !url || !outputPath || !downloadId) {
                 throw new Error('Invalid download parameters')
             }
 
             // Ensure output directory exists
+            const outputDir = require('path').dirname(outputPath)
             if (!existsSync(outputDir)) {
                 mkdirSync(outputDir, { recursive: true })
             }
@@ -242,8 +254,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
             const ytDlp = new YTDlpClass(getYtDlpBinaryPath())
 
             // Build output template
-            const safeTitle = title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 100)
-            const outputTemplate = join(outputDir, `${safeTitle}.%(ext)s`)
+            const outputTemplate = outputPath
 
             const ytDlpArgs: string[] = [
                 url,
@@ -266,7 +277,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
                 tempDir = join(tmpdir(), `yt2-${downloadId}`)
                 mkdirSync(tempDir, { recursive: true })
                 // Override the -o template to point at temp dir
-                const tempTemplate = join(tempDir, `${safeTitle}.%(ext)s`)
+                const tempTemplate = join(tempDir, `temp_audio.%(ext)s`)
                 // Replace the -o argument already added above
                 const oIdx = ytDlpArgs.indexOf('-o')
                 if (oIdx !== -1) ytDlpArgs[oIdx + 1] = tempTemplate
@@ -337,12 +348,12 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
                         if (code === 0) {
                             let finalPath = ''
                             if (isAudio && tempDir) {
-                                // Find the mp3 in tempDir and move it to outputDir
+                                // Find the mp3 in tempDir and move it to outputPath
                                 try {
                                     const mp3File = readdirSync(tempDir).find(f => f.endsWith('.mp3'))
                                     if (mp3File) {
                                         const src = join(tempDir, mp3File)
-                                        const dest = join(outputDir, mp3File)
+                                        const dest = outputPath
                                         renameSync(src, dest)
                                         finalPath = dest
 
@@ -368,9 +379,8 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
                                     try { rmSync(tempDir, { recursive: true, force: true }) } catch (_) { }
                                 }
                             } else {
-                                // Non-audio: use guessed path or captured path
-                                const guessedPath = join(outputDir, `${safeTitle}.mp4`)
-                                finalPath = filePath || guessedPath
+                                // Non-audio: use captured path, fallback to outputPath
+                                finalPath = filePath || outputPath
                             }
                             emitPush({ status: 'complete', percent: 100, filePath: finalPath })
                             resolve({ success: true, filePath: finalPath })
