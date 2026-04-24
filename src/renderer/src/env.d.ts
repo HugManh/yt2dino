@@ -46,11 +46,13 @@ interface DownloadParams {
 interface ElectronAPI {
     checkDependencies: () => Promise<boolean>
     search: (query: string, page?: number) => Promise<VideoResult[]>
-    getVideoInfo: (videoId: string) => Promise<{ title: string; duration: string; thumbnail: string; formats: DownloadFormat[] }>
-    download: (params: DownloadParams) => Promise<{ success: boolean; filePath: string }>
+    getVideoInfo: (videoId: string) => Promise<{ title: string; duration: string; thumbnail: string; formats: { label: string; value: string; ext: string; isAudio?: boolean; audioQuality?: string }[] }>
+    download: (params: { videoId: string; url: string; title: string; artist?: string; year?: string; genre?: string; thumbnailUrl?: string; format: string; ext: string; isAudio: boolean; outputDir: string; downloadId: string; audioQuality?: string }) => Promise<{ success: boolean; filePath: string }>
     cancel: (downloadId: string) => Promise<boolean>
     chooseFolder: () => Promise<string | null>
-    onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
+    showItemInFolder: (path: string) => Promise<boolean>
+    openExternal: (url: string) => Promise<void>
+    onDownloadProgress: (callback: (progress: any) => void) => () => void
     minimize: () => void
     maximize: () => void
     close: () => void

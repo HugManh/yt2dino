@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow, app } from 'electron'
+import { ipcMain, dialog, BrowserWindow, app, shell } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from 'fs'
 import { readFile, writeFile } from 'fs/promises'
@@ -426,6 +426,20 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
         } else {
             win.webContents.openDevTools({ mode: 'detach' })
         }
+    })
+
+    // ── External Links and Folders ──────────────────────────────────────────
+    ipcMain.handle('app:show-item-in-folder', (_event, itemPath: string) => {
+        if (!itemPath) return false
+        if (existsSync(itemPath)) {
+            shell.showItemInFolder(itemPath)
+            return true
+        }
+        return false
+    })
+
+    ipcMain.handle('app:open-external', (_event, url: string) => {
+        if (url) shell.openExternal(url)
     })
 
     // ── Download History ─────────────────────────────────────────

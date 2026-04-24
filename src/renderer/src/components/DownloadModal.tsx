@@ -162,6 +162,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ video, onClose, onDownloa
             startedAt: Date.now(),
             ext: selectedFormat.ext,
             formatLabel: `${selectedFormat.label} · ${selectedQuality.label}`,
+            url: video.url,
         }
 
         // Notify App.tsx (registers in tray + triggers fly animation)

@@ -64,6 +64,12 @@ const api = {
     chooseFolder: (): Promise<string | null> =>
         ipcRenderer.invoke('app:choose-folder'),
 
+    showItemInFolder: (path: string): Promise<boolean> =>
+        ipcRenderer.invoke('app:show-item-in-folder', path),
+
+    openExternal: (url: string): Promise<void> =>
+        ipcRenderer.invoke('app:open-external', url),
+
     onDownloadProgress: (callback: (progress: DownloadProgress) => void): (() => void) => {
         const handler = (_: Electron.IpcRendererEvent, data: DownloadProgress) => callback(data)
         ipcRenderer.on('download:progress', handler)

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 import type { DownloadRecord } from '../types'
@@ -9,6 +9,7 @@ interface DownloadTrayProps {
     onToggle: () => void
     onDelete: (downloadId: string) => void
     onClear: () => void
+    onMarkDeleted?: (downloadId: string) => void
 }
 
 // ── SVG Icons ────────────────────────────────────────────────────
@@ -41,6 +42,17 @@ const IconFile = () => (
         <polyline points="14 2 14 8 20 8" />
     </svg>
 )
+const IconLink = () => (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+)
+const IconFolderOpen = () => (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+)
 
 // ── Helpers ──────────────────────────────────────────────────────
 const STATUS_LABEL: Record<string, string> = {
@@ -63,12 +75,19 @@ function formatTimeAgo(ms: number): string {
 }
 
 // ── Main component ────────────────────────────────────────────────
-const DownloadTray: React.FC<DownloadTrayProps> = ({ downloads, open, onToggle, onDelete, onClear }) => {
+const DownloadTray: React.FC<DownloadTrayProps> = ({ downloads, open, onToggle, onDelete, onClear, onMarkDeleted }) => {
     const panelRef = useRef<HTMLDivElement>(null)
+    const [toast, setToast] = useState<string | null>(null)
+
+    const handleCopy = useCallback((url: string) => {
+        navigator.clipboard.writeText(url).catch(() => { })
+        setToast('Đã sao chép link YouTube')
+        setTimeout(() => setToast(null), 3000)
+    }, [])
 
     const hasActive = downloads.some(d => ['downloading', 'converting', 'processing', 'tagging'].includes(d.status))
-    const activeItems = downloads.filter(d => !['complete', 'error'].includes(d.status))
-    const histItems = downloads.filter(d => ['complete', 'error'].includes(d.status))
+    const activeItems = downloads.filter(d => !['complete', 'error', 'deleted'].includes(d.status))
+    const histItems = downloads.filter(d => ['complete', 'error', 'deleted'].includes(d.status))
 
     // Close on outside click
     useEffect(() => {
@@ -82,6 +101,22 @@ const DownloadTray: React.FC<DownloadTrayProps> = ({ downloads, open, onToggle, 
 
     return (
         <div className="dl-tray" ref={panelRef}>
+            {/* ── Global Toast ── */}
+            <AnimatePresence>
+                {toast && (
+                    <motion.div
+                        className="global-toast"
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+                    >
+                        <span style={{ color: 'var(--ok)', marginRight: 6 }}>✓</span>
+                        {toast}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* ── Floating FAB button ── */}
             <motion.button
                 className={`dl-fab ${open ? 'open' : ''}`}
@@ -97,21 +132,7 @@ const DownloadTray: React.FC<DownloadTrayProps> = ({ downloads, open, onToggle, 
 
                 <IconTray />
 
-                {/* Badge */}
-                <AnimatePresence>
-                    {downloads.length > 0 && (
-                        <motion.span
-                            className="dl-fab-badge"
-                            key="badge"
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            exit={{ scale: 0 }}
-                            transition={{ type: 'spring' as const, damping: 18, stiffness: 400 }}
-                        >
-                            {downloads.length > 99 ? '99+' : downloads.length}
-                        </motion.span>
-                    )}
-                </AnimatePresence>
+                {/* Badge removed */}
             </motion.button>
 
             {/* ── Panel ── */}
@@ -148,7 +169,7 @@ const DownloadTray: React.FC<DownloadTrayProps> = ({ downloads, open, onToggle, 
                                 <div className="dl-group">
                                     <div className="dl-group-label">Đang xử lý</div>
                                     {activeItems.map(dl => (
-                                        <DlItem key={dl.downloadId} dl={dl} onDelete={onDelete} />
+                                        <DlItem key={dl.downloadId} dl={dl} onDelete={onDelete} onCopy={handleCopy} />
                                     ))}
                                 </div>
                             )}
@@ -159,7 +180,7 @@ const DownloadTray: React.FC<DownloadTrayProps> = ({ downloads, open, onToggle, 
                                     {activeItems.length > 0 && <div className="dl-group-divider" />}
                                     <div className="dl-group-label">Lịch sử</div>
                                     {histItems.map(dl => (
-                                        <DlItem key={dl.downloadId} dl={dl} onDelete={onDelete} />
+                                        <DlItem key={dl.downloadId} dl={dl} onDelete={onDelete} onMarkDeleted={onMarkDeleted} onCopy={handleCopy} />
                                     ))}
                                 </div>
                             )}
@@ -172,20 +193,21 @@ const DownloadTray: React.FC<DownloadTrayProps> = ({ downloads, open, onToggle, 
 }
 
 // ── Single download item ──────────────────────────────────────────
-const DlItem: React.FC<{ dl: DownloadRecord; onDelete: (id: string) => void }> = ({ dl, onDelete }) => {
-    const isActive = !['complete', 'error'].includes(dl.status)
+const DlItem: React.FC<{ dl: DownloadRecord; onDelete: (id: string) => void; onMarkDeleted?: (id: string) => void; onCopy?: (url: string) => void }> = ({ dl, onDelete, onMarkDeleted, onCopy }) => {
     const isComplete = dl.status === 'complete'
     const isError = dl.status === 'error'
+    const isDeleted = dl.status === 'deleted'
+    const isActive = !['complete', 'error', 'deleted'].includes(dl.status)
 
     return (
-        <div className={`dl-item ${isComplete ? 'done' : isError ? 'err' : 'active'}`}>
+        <div className={`dl-item ${isComplete ? 'done' : (isError || isDeleted) ? 'err' : 'active'}`}>
             {/* Thumbnail */}
             <div className="dl-item-thumb-wrap">
                 <img className="dl-item-thumb" src={dl.thumbnail} alt="" />
                 {isComplete && (
                     <span className="dl-item-thumb-badge ok"><IconCheck /></span>
                 )}
-                {isError && (
+                {(isError || isDeleted) && (
                     <span className="dl-item-thumb-badge bad">!</span>
                 )}
             </div>
@@ -219,19 +241,26 @@ const DlItem: React.FC<{ dl: DownloadRecord; onDelete: (id: string) => void }> =
                 {isError && (
                     <div className="dl-item-error-msg">{dl.errorMsg || 'Đã xảy ra lỗi'}</div>
                 )}
+                {dl.deletedAt && (
+                    <div className="dl-item-error-msg">Đã xóa {formatTimeAgo(dl.deletedAt)}</div>
+                )}
 
                 {/* Progress bar */}
                 {isActive && (
-                    <div className="dl-item-bar-wrap">
+                    <>
                         {dl.status === 'downloading' ? (
-                            <motion.div className="dl-item-bar-fill"
-                                animate={{ width: `${dl.percent}%` }}
-                                transition={{ duration: 0.4, ease: 'easeOut' }}
-                                style={{ width: 0 }} />
+                            <div className="dl-item-bar-wrap">
+                                <motion.div className="dl-item-bar-fill"
+                                    animate={{ width: `${dl.percent}%` }}
+                                    transition={{ duration: 0.4, ease: 'easeOut' }}
+                                    style={{ width: 0 }} />
+                            </div>
                         ) : (
-                            <div className="dl-item-bar-fill processing" style={{ width: '100%' }} />
+                            <div className="dl-item-processing-icon">
+                                <div className="spinner" style={{ width: 12, height: 12, borderWidth: 1.5 }} />
+                            </div>
                         )}
-                    </div>
+                    </>
                 )}
 
                 {/* Time */}
@@ -240,14 +269,42 @@ const DlItem: React.FC<{ dl: DownloadRecord; onDelete: (id: string) => void }> =
 
             {/* Action buttons */}
             {!isActive && (
-                <button
-                    className="dl-item-del"
-                    onClick={(e) => { e.stopPropagation(); onDelete(dl.downloadId) }}
-                    title="Xóa khỏi danh sách"
-                    aria-label="Xóa"
-                >
-                    <IconClose />
-                </button>
+                <div className="dl-item-actions-group">
+                    {(isComplete || isDeleted) && dl.url && (
+                        <button
+                            className="dl-item-action-icon"
+                            onClick={(e) => { e.stopPropagation(); onCopy?.(dl.url as string) }}
+                            title="Sao chép link YouTube"
+                            aria-label="Sao chép link YouTube"
+                        >
+                            <IconLink />
+                        </button>
+                    )}
+                    {isComplete && dl.filePath && !isDeleted && (
+                        <button
+                            className="dl-item-action-icon"
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                const exists = await window.api.showItemInFolder(dl.filePath as string)
+                                if (!exists && onMarkDeleted) {
+                                    onMarkDeleted(dl.downloadId)
+                                }
+                            }}
+                            title="Mở thư mục"
+                            aria-label="Mở thư mục"
+                        >
+                            <IconFolderOpen />
+                        </button>
+                    )}
+                    <button
+                        className="dl-item-action-icon dl-item-del"
+                        onClick={(e) => { e.stopPropagation(); onDelete(dl.downloadId) }}
+                        title="Xóa khỏi danh sách"
+                        aria-label="Xóa"
+                    >
+                        <IconClose />
+                    </button>
+                </div>
             )}
         </div>
     )

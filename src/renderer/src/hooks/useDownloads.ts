@@ -12,7 +12,7 @@ export function useDownloads() {
         window.api.historyLoad().then(raw => {
             if (Array.isArray(raw) && raw.length > 0) {
                 const loaded = (raw as DownloadRecord[]).map(d =>
-                    ['complete', 'error'].includes(d.status)
+                    ['complete', 'error', 'deleted'].includes(d.status)
                         ? d
                         : { ...d, status: 'error' as const, errorMsg: 'Tải xuống bị gián đoạn' }
                 )
@@ -70,7 +70,17 @@ export function useDownloads() {
 
     const handleClear = useCallback(() => {
         setDownloads(prev => {
-            const next = prev.filter(d => !['complete', 'error'].includes(d.status))
+            const next = prev.filter(d => !['complete', 'error', 'deleted'].includes(d.status))
+            window.api.historySave(next as unknown[]).catch(() => { })
+            return next
+        })
+    }, [])
+
+    const handleMarkDeleted = useCallback((downloadId: string) => {
+        setDownloads(prev => {
+            const next = prev.map(d =>
+                d.downloadId === downloadId ? { ...d, status: 'deleted' as const, deletedAt: Date.now() } : d
+            )
             window.api.historySave(next as unknown[]).catch(() => { })
             return next
         })
@@ -82,6 +92,7 @@ export function useDownloads() {
         flyState,
         handleDownloadStart,
         handleDelete,
-        handleClear
+        handleClear,
+        handleMarkDeleted
     }
 }

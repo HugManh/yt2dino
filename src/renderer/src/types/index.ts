@@ -36,7 +36,7 @@ export interface DownloadRecord {
     downloadId: string
     title: string
     thumbnail: string
-    status: 'downloading' | 'converting' | 'processing' | 'tagging' | 'complete' | 'error'
+    status: 'downloading' | 'converting' | 'processing' | 'tagging' | 'complete' | 'error' | 'deleted'
     percent: number
     speed?: string
     eta?: string
@@ -46,4 +46,6 @@ export interface DownloadRecord {
     completedAt?: number
     formatLabel?: string   // e.g. "MP3 · 320 kbps"
     ext?: string
+    url?: string
+    deletedAt?: number
 }

@@ -26,7 +26,8 @@ function App(): React.JSX.Element {
         flyState,
         handleDownloadStart,
         handleDelete,
-        handleClear
+        handleClear,
+        handleMarkDeleted
     } = useDownloads()
 
     const [selectedVideo, setSelectedVideo] = useState<SelectedVideo | null>(null)
@@ -73,6 +74,7 @@ function App(): React.JSX.Element {
                 onToggle={() => setTrayOpen(v => !v)}
                 onDelete={handleDelete}
                 onClear={handleClear}
+                onMarkDeleted={handleMarkDeleted}
             />
 
             {/* Main Content */}
@@ -120,7 +122,7 @@ function App(): React.JSX.Element {
                                     }}>✕</button>
                                 )}
                                 <button className="search-btn" onClick={handleSearch} disabled={loading || !query.trim()}>
-                                    {loading ? <div className="spinner" /> : 'Tìm'}
+                                    Tìm
                                 </button>
                             </div>
                         </div>
@@ -140,6 +142,15 @@ function App(): React.JSX.Element {
                                 <div className="empty-icon">🎵</div>
                                 <h3>Bắt đầu tìm kiếm</h3>
                                 <p>Nhập từ khóa để tự động tìm kiếm</p>
+                            </div>
+                        )}
+
+                        {/* Loading state (initial search) */}
+                        {loading && results.length === 0 && (
+                            <div className="loading-state" style={{ marginTop: '60px' }}>
+                                <div className="main-spinner" style={{ marginBottom: '16px' }} />
+                                <h3>Đang tìm kiếm...</h3>
+                                <p>Đang tải dữ liệu từ YouTube, vui lòng đợi giây lát.</p>
                             </div>
                         )}
 
@@ -185,7 +196,7 @@ function App(): React.JSX.Element {
                             opacity: [1, 0.8, 0],
                             scale: [1, 0.5, 0.2],
                             x: window.innerWidth - 50,
-                            y: 80,
+                            y: window.innerHeight - 50,
                         }}
                         transition={{ duration: 0.65, ease: 'easeOut' }}
                     />
