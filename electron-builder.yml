@@ -1,5 +1,5 @@
 appId: com.yt2.downloader
-productName: YT2 Downloader
+productName: YT2Dino
 directories:
   buildResources: resources
   output: dist

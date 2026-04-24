@@ -1,4 +1,4 @@
-# YT2 Downloader
+# YT2Dino
 
 A modern, fast, and lightweight YouTube Search & Downloader Desktop Application built with Electron, React, and Vite. It allows users to easily search for YouTube videos, view video details, and download them in high quality (Video) or automatically-tagged Audio (MP3).
 
