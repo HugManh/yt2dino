@@ -2,6 +2,9 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc-handlers'
 
+// @ts-ignore
+import icon from '../../resources/icon.png?asset'
+
 let mainWindow: BrowserWindow | null = null
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -16,6 +19,8 @@ function createWindow(): void {
         backgroundColor: '#0a0a0f',
         titleBarStyle: 'hidden',
         frame: false,
+        ...(process.platform === 'linux' ? { icon } : {}),
+        icon,
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
             sandbox: false,

@@ -6,6 +6,7 @@ import DownloadTray from './components/DownloadTray'
 import { useYouTubeSearch } from './hooks/useYouTubeSearch'
 import { useDownloads } from './hooks/useDownloads'
 import type { SelectedVideo } from './types'
+import logoImg from './assets/logo.png'
 
 function App(): React.JSX.Element {
     const {
@@ -57,8 +58,8 @@ function App(): React.JSX.Element {
             {/* Titlebar */}
             <div className="titlebar">
                 <div className="titlebar-logo">
-                    <div className="logo-icon">▶</div>
-                    <span className="logo-text">YT2 Downloader</span>
+                    <img src={logoImg} className="logo-icon" alt="YT2" style={{ borderRadius: '4px', width: '16px', height: '16px', border: 'none', background: 'none' }} />
+                    <span className="logo-text">YT2Dino</span>
                 </div>
                 <div className="titlebar-controls">
                     <button className="titlebar-btn" onClick={() => window.api.minimize()} title="Thu nhỏ">─</button>
